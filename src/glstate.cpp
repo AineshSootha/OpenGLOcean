@@ -375,9 +375,13 @@ void GLState::paintGL() {
 		activeText = -1;
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-
+		int inOut = 0;
 		for(int i = 0; i < log2N; i++){
+			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), i);
+			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), inOut);
 			glDispatchCompute(16, 16, 1);
+			glFinish();
+			inOut = !inOut;
 		}
 		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 

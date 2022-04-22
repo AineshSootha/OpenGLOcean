@@ -31,10 +31,30 @@ void main(){
     ivec2 pos = ivec2( gl_GlobalInvocationID.xy );
     vec4 inputVec1;
     vec4 inputVec2;
+    int span = pow(2, currStage);
     vec2 twiddle = twiddleCompute(pos.x);
     // vec4 butterflyIndices_T = imageLoad(butterfly, ivec2(stage, pos.x));
-    ivec2 firstIdx = revInd[x];   
-    ivec2 secondIdx = revInd[x+1];
+    ivec2 firstIdx;  
+    ivec2 secondIdx;
+    int topOrBottom = pos.y & pow(2, currStage + 1) - 1 ;
+    if(currStage == 0){
+        if(topOrBottom < pow(2, currStage)){
+            firstIdx = revInd[pos.x];
+            secondIdx = revInd[pos.x + 1];
+        }else{
+            firstIdx = revInd[pos.x - 1];
+            secondIdx = revInd[pos.x];
+        }
+    }else{
+        if(topOrBottom < pow(2, currStage)){
+            firstIdx = revInd[pos.x];
+            secondIdx = revInd[pos.x  + pow(2, currStage)];
+        }
+        else{
+            firstIdx = revInd[pos.x - pow(2, currStage)];
+            secondIdx = revInd[pos.x];
+        }   
+    }
     if(inOutDecide == 0){
         inputVec1 = imageLoad(inOutTex0, firstIdx);
         inputVec2 = imageLoad(inOutTex0, secondIdx);
