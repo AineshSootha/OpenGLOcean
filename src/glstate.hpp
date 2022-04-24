@@ -46,10 +46,10 @@ private:
 	glm::vec3 camCoords;
 	struct GridVert {
 		glm::vec3 pos;
-		glm::vec2 tex;
+		// glm::vec2 tex;
 	};
 	std::vector<GridVert> vertices;
-	std::vector<unsigned int> indices;
+	std::vector<GLuint> indices;
 	float texScale;
 	std::unique_ptr<Texture> gaussianRandTexture;
 	GLuint gaussianRandId;
@@ -78,6 +78,15 @@ private:
 	std::unique_ptr<Compute> HorizontalFFTcompute;
 	GLuint HorizontalFFTcomputeshader;
 	std::unique_ptr<Texture> HorizontalFFTcomputeTexture;
+
+	std::unique_ptr<Compute> VerticalFFTcompute;
+	GLuint VerticalFFTcomputeshader;
+	std::unique_ptr<Texture> VerticalFFTcomputeTexture;
+
+	std::unique_ptr<Compute> InversionFFTcompute;
+	GLuint InversionFFTcomputeshader;
+	std::unique_ptr<Texture> InversionFFTcomputeTexture;
+
 
 	GLfloat currTime;
 	GLint log2N;

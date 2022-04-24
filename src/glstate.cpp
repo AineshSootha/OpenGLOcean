@@ -7,7 +7,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "util.hpp"
 
-#define GRID 256
+#define RES 64
+#define GRID 32
 
 //TESTING VARIABLES
 std::ofstream ofs, ofs2;
@@ -19,15 +20,15 @@ GLint activeText = -1;
 // Constructor
 GLState::GLState() :
 	shader(0),
-	vcount(GRID + 1),
-	totalVcount(GRID * GRID * 6),
+	vcount(RES + 1),
+	totalVcount(RES * RES * 6),
 	xFormLoc(0),
 	currTime(0.0f),
 	log2N(log(GRID) / log(2)),
 	camCoords(0.0f, 50.0f, 3.0f),
 	reverseIndices(GRID, 0),
 	vertices(vcount * vcount),
-	indices(totalVcount),
+	// indices(32*32*6),//totalVcount),
 	parametersChanged(true) {}
 	
 // Destructor
@@ -60,30 +61,37 @@ void GLState::initializeGL() {
 	initShaders();
 
 	int idx = 0;
-	for(int y = -GRID / 2; y <= GRID / 2; y++){
-		for(int x = -GRID / 2; x <= GRID / 2; x++){
-			vertices[idx].pos = {2 * (float)x, 0.0f, 2 * (float)y}; 
+	for(int j=-RES/2; j<=RES/2; ++j) {
+		for(int i=-RES/2; i<=RES/2; ++i) {
+			float x = 2 * (float)i/(float)RES;
+			float y = 2 * (float)j/(float)RES;
+			float z = 0;
+			vertices[idx++].pos = (glm::vec3(x, y, z));
 			float u = ((float)x / GRID) + 0.5f;
-			float v = ((float)y / GRID) + 0.5f;
-			vertices[idx++].tex = glm::vec2(u, v) * 2.0f;
+			float v = ((float)z / GRID) + 0.5f;
+			// vertices[idx++].tex = glm::vec2(u, v) * 2.0f;
 		}
 	}
+	assert(idx == vertices.size());
 	idx = 0;
-
+	int slices = 32;
+	
 	//CounterClockwiseWinding
-	for(int i = 0; i < GRID; i++){
-		for(int j = 0; j < GRID; j++){
-			int r1 = i * vcount;
-			int r2 = (i+1) * vcount;
-			indices[idx++] = (r1 + j);
-			indices[idx++] = (r2 + j + 1);
-			indices[idx++] = (r2 + j);
-			indices[idx++] = (r2 + j + 1);
-			indices[idx++] = (r1 + j);
-			indices[idx++] = (r1 + j + 1);
-		}
-	}
+	for(int j=0; j<RES; ++j) {
+        for(int i=0; i<RES; ++i) {
+			int row1 =  j    * (RES+1);
+			int row2 = (j+1) * (RES+1);
+			indices.push_back(row1+i);
+			indices.push_back(row2+i+1);
+          	indices.push_back(row2+i);
+			indices.push_back(row2+i+1);
+			indices.push_back(row1+i);
+			indices.push_back(row1+i+1);
 
+        }
+      }
+
+	// length = (GLuint)indices.size() * 4;
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbuf);
     glGenBuffers(1, &ibuf);
@@ -92,10 +100,11 @@ void GLState::initializeGL() {
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GridVert), vertices.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuf);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
     glBindVertexArray(0); 
+
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 
@@ -198,6 +207,14 @@ void GLState::initializeGL() {
 	HorizontalFFTcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
 	HorizontalFFTcomputeshader = HorizontalFFTcompute->program();
 
+	VerticalFFTcompute = std::unique_ptr<Compute>(new Compute("shaders/fftVerticalCompute.glsl"));
+	VerticalFFTcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	VerticalFFTcomputeshader = VerticalFFTcompute->program();
+
+	InversionFFTcompute = std::unique_ptr<Compute>(new Compute("shaders/invertfftCompute.glsl"));
+	InversionFFTcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	InversionFFTcomputeshader = InversionFFTcompute->program();
+
 	activeText = -1;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 	// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
@@ -230,12 +247,12 @@ void GLState::paintGL() {
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
 		
-		glDispatchCompute(16, 16, 1);
+		glDispatchCompute(GRID / 16, GRID / 16, 1);
 		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 		//TESTING ONLY - h0Test
 		glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
-		w = 256;
-		h = 256;
+		w = GRID;
+		h = GRID;
 		ofs.open("temp/test_h0.ppm", std::ios_base::out | std::ios_base::binary);
 		ofs2.open("temp/test_h0.txt");
 		ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
@@ -269,7 +286,7 @@ void GLState::paintGL() {
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
 		
-		glDispatchCompute(16, 16, 1);
+		glDispatchCompute(GRID / 16, GRID / 16, 1);
 		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 		//TESTING ONLY - h0Test
 		glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
@@ -329,7 +346,7 @@ void GLState::paintGL() {
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 	// std::cout<<activeText<<HKcomputeTexture->id()<<std::endl;
 
-	glDispatchCompute(16, 16, 1);
+	glDispatchCompute(GRID / 16, GRID / 16, 1);
 	glMemoryBarrier( GL_ALL_BARRIER_BITS );
 
 	/*glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
@@ -352,9 +369,18 @@ void GLState::paintGL() {
 	glFinish();
 	}
 
-	
+	int inOut = 0;
 	{
 		HorizontalFFTcompute->use();
+
+		GLuint ssbo;
+		GLuint binding = 0;
+		glGenBuffers(1, &ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
 		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "N"), mainOcean->getN());
 		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutTex0"), 1);
 		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutTex1"), 2);
@@ -362,7 +388,7 @@ void GLState::paintGL() {
 		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), 0);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
-		HorizontalFFTcomputeTexture->bindImage(1, GL_READ_WRITE);
+		HKcomputeTexture->bindImage(1, GL_READ_WRITE);
 
 		activeText = -1;
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
@@ -370,31 +396,22 @@ void GLState::paintGL() {
 
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
-		H0MinusKcomputeTexture->bindImage(2, GL_READ_ONLY);
+		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
 
 		activeText = -1;
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-		int inOut = 0;
+	
 		for(int i = 0; i < log2N; i++){
 			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), i);
 			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), inOut);
-			glDispatchCompute(16, 16, 1);
+			glDispatchCompute(GRID / 16, GRID / 16, 1);
 			glFinish();
 			inOut = !inOut;
 		}
-		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 
-		/*glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
-		ofs.open("temp/test_hk.ppm", std::ios_base::out | std::ios_base::binary);
-		ofs2.open("temp/test_hk.txt");
-		ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-		for(int curr = 0; curr < w*h*2; curr+=2){
-			ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
-			ofs2 <<  (compute_data.at(curr + 0) * 256) << " " << (compute_data.at(curr + 1) * 256) << " " <<  (0) << '\n';
-		}
-		ofs.close();
-		ofs2.close();*/
+
+		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 		
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, 0);
@@ -404,17 +421,100 @@ void GLState::paintGL() {
 		glUseProgram(0);
 		glFinish();
 	}
-	/*glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
-	ofs.open("temp/test_hk.ppm", std::ios_base::out | std::ios_base::binary);
-	ofs2.open("temp/test_hk.txt");
-	ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-	for(int curr = 0; curr < w*h*2; curr+=2){
-		ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
-		ofs2 <<  (compute_data.at(curr + 0) * 256) << " " << (compute_data.at(curr + 1) * 256) << " " <<  (0) << '\n';
-	}
-	ofs.close();
-	ofs2.close();*/
+
 	
+	{
+		VerticalFFTcompute->use();
+
+		GLuint ssbo;
+		GLuint binding = 0;
+		glGenBuffers(1, &ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "N"), mainOcean->getN());
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutTex0"), 1);
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutTex1"), 2);
+		// glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutDecide"), 0);
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "currStage"), 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
+		HKcomputeTexture->bindImage(1, GL_READ_WRITE);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
+		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
+		// std::cout<<"HERE1"<<std::endl;
+		for(int i = 0; i < log2N; i++){
+			glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "currStage"), i);
+			glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutDecide"), inOut);
+			glDispatchCompute(GRID / 16, GRID / 16, 1);
+			glFinish();
+			inOut = !inOut;
+		}
+		// std::cout<<"HERE2"<<std::endl;
+
+		glMemoryBarrier( GL_ALL_BARRIER_BITS );
+		
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		// glDisable(GL_TEXTURE_2D);
+		glUseProgram(0);
+		glFinish();
+	}
+	
+
+
+	{
+		InversionFFTcompute->use();
+
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "N"), mainOcean->getN());
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutTex0"), 1);
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutTex1"), 2);
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "finalOut"), 0);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
+		HKcomputeTexture->bindImage(1, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
+		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
+		
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture->id());
+		InversionFFTcomputeTexture->bindImage(0, GL_WRITE_ONLY);
+
+		// std::cout<<"HERE1"<<std::endl;
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutDecide"), inOut);
+		glDispatchCompute(GRID / 16, GRID / 16, 1);
+		glFinish();
+
+		glMemoryBarrier( GL_ALL_BARRIER_BITS );
+		
+	}
+
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glActiveTexture(GL_TEXTURE0);
@@ -422,35 +522,31 @@ void GLState::paintGL() {
 	// glDisable(GL_TEXTURE_2D);
 	glUseProgram(0);
 	glFinish();
-
-
+	int N = mainOcean->getN();
 	
 
 	glUseProgram(shader);
 	glm::mat4 xform(1.0f);
 	glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 	glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -camCoords.z));
-	view = glm::rotate(view, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	view = glm::rotate(view, glm::radians(camCoords.z), glm::vec3(1.0f, 0.0f, 0.0f));
 	view = glm::rotate(view, glm::radians(camCoords.x), glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 pos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.0f,0.0f));
 	xform = proj * view;//* pos;// * fixBB;
 	glUniformMatrix4fv(xFormLoc, 1, GL_FALSE, glm::value_ptr(xform));
 	glUniform1f(glGetUniformLocation(shader, "a_time"), currTime);
-	glUniform1i(glGetUniformLocation(shader, "imgHk"), 2);
-	
+	glUniform1i(glGetUniformLocation(shader, "dispMap"), 2);
+	glUniform1f(glGetUniformLocation(shader, "speed"), mainOcean->getWindspeed());
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
-	HKcomputeTexture->bindImage(2, GL_READ_ONLY);
-
-	// std::cout<<curTime<<std::endl;
-	// glUniformMatrix4fv(xFormLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-
-
+	glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture->id());
+	InversionFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+	activeText = -1;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+	std::cout<<activeText<<InversionFFTcomputeTexture->id()<<std::endl;
   	glBindVertexArray(vao);
 
   	// glDrawElements(GL_LINES, length, GL_UNSIGNED_INT, NULL);
-	glDrawElements(GL_TRIANGLES, totalVcount, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, totalVcount,  GL_UNSIGNED_INT, 0);
 
   	glBindVertexArray(0);
 

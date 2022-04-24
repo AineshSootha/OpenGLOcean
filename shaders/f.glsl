@@ -2,10 +2,11 @@
 
 // in vec4 posCurr;	// Interpolated model-space normal
 layout(rgba32f, binding = 2) readonly uniform image2D img_hk;
+in float heightVal;
 out vec4 outCol;	// Final pixel color
 
 void main() {
 	// Visualize normals as colors
 
-	outCol = vec4(imageLoad(img_hk, ivec2(gl_FragCoord.xyz)).rgba);
+	outCol = vec4(heightVal, heightVal, heightVal, 1.0);//vec4(imageLoad(img_hk, ivec2(gl_FragCoord.xyz)).rgba);
 }

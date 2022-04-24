@@ -21,8 +21,8 @@ vec2 multiply(vec2 h0, vec2 wkt){
   return res;
 }
 
-vec2 twiddleCompute(int x){
-    float twiddleExponent = mod(x * float(N)/ pow(2, currStage + 1), N);
+vec2 twiddleCompute(int y){
+    float twiddleExponent = mod(y * float(N)/ pow(2, currStage + 1), N);
     twiddleExponent = 2.0 * M_PI * twiddleExponent / float(N);
     return vec2(cos(twiddleExponent), sin(twiddleExponent));
 }
@@ -32,35 +32,35 @@ void main(){
     vec4 inputVec1;
     vec4 inputVec2;
     int span = int(pow(2, currStage));
-    vec2 twiddle = twiddleCompute(pos.x);
+    vec2 twiddle = twiddleCompute(pos.y);
     // vec4 butterflyIndices_T = imageLoad(butterfly, ivec2(stage, pos.x));
     int firstIdx;  
     int secondIdx;
-    int topOrBottom = pos.x & int(pow(2, currStage + 1) - 1) ;
+    int topOrBottom = pos.y & int(pow(2, currStage + 1) - 1) ;
     if(currStage == 0){
         if(topOrBottom < pow(2, currStage)){
-            firstIdx = revInd[pos.x];
-            secondIdx = revInd[pos.x + 1];
+            firstIdx = revInd[pos.y];
+            secondIdx = revInd[pos.y + 1];
         }else{
-            firstIdx = revInd[pos.x - 1];
-            secondIdx = revInd[pos.x];
+            firstIdx = revInd[pos.y - 1];
+            secondIdx = revInd[pos.y];
         }
     }else{
         if(topOrBottom < pow(2, currStage)){
-            firstIdx = revInd[pos.x];
-            secondIdx = revInd[pos.x  + int(pow(2, currStage))];
+            firstIdx = revInd[pos.y];
+            secondIdx = revInd[pos.y  + int(pow(2, currStage))];
         }
         else{
-            firstIdx = revInd[pos.x - int(pow(2, currStage))];
-            secondIdx = revInd[pos.x];
+            firstIdx = revInd[pos.y - int(pow(2, currStage))];
+            secondIdx = revInd[pos.y];
         }   
     }
     if(inOutDecide == 0){
-        inputVec1 = imageLoad(inOutTex0, ivec2(firstIdx, pos.y));
-        inputVec2 = imageLoad(inOutTex0, ivec2(secondIdx, pos.y));
+        inputVec1 = imageLoad(inOutTex0, ivec2(pos.x, firstIdx));
+        inputVec2 = imageLoad(inOutTex0, ivec2(pos.x, secondIdx));
     }else{
-        inputVec1 = imageLoad(inOutTex1, ivec2(firstIdx, pos.y));
-        inputVec2 = imageLoad(inOutTex1, ivec2(secondIdx, pos.y));
+        inputVec1 = imageLoad(inOutTex1, ivec2(pos.x, firstIdx));
+        inputVec2 = imageLoad(inOutTex1, ivec2(pos.x, secondIdx));
     }
     vec2 res = multiply(twiddle, inputVec2.zw) + inputVec1.zw;
 

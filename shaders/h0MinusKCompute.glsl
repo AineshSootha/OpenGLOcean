@@ -11,7 +11,7 @@ uniform int startL;
 uniform int V;
 uniform int A;
 uniform float g = 9.81;
-vec2 windDir = vec2(1.0,1.0);
+vec2 windDir = normalize(vec2(1.0,1.0));
 
 vec2 gaussianRandoms(){
     vec2 texCoord = vec2(gl_GlobalInvocationID.xy) / float(N);
