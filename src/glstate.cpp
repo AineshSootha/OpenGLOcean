@@ -154,54 +154,7 @@ void GLState::initializeGL() {
 		std::cout<<reverseIndices[i]<<std::endl;
 	}
 
-	//Butterfly compute shader setup
-	/*ONLY FOR TESTING
-	Butterflycompute = std::unique_ptr<Compute>(new Compute("shaders/fftButterflyCompute.glsl"));
-	ButterflycomputeTexture = std::unique_ptr<Texture>(new Texture(log2N, GRID, NULL, GL_RGBA32F));
-	Butterflycomputeshader = Butterflycompute->program();
-	{
-		Butterflycompute->use();
-		glUniform1i(glGetUniformLocation(Butterflycomputeshader, "N"), mainOcean->getN());
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, ButterflycomputeTexture->id());
-		ButterflycomputeTexture->bindImage(0, GL_WRITE_ONLY);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<ButterflycomputeTexture->id()<<std::endl;
-
-		GLuint ssbo;
-		GLuint binding = 1;
-		glGenBuffers(1, &ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-		glDispatchCompute(log2N, 16, 1);
-		glMemoryBarrier( GL_ALL_BARRIER_BITS );
-
-
-		glGetTexImage( GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, compute_data.data() );
-		ofs.open("temp/test_butterfly.ppm", std::ios_base::out | std::ios_base::binary);
-		ofs2.open("temp/test_butterfly.txt");
-		w = 8;
-		h = 256;
-		ofs << "P6" << std::endl << 256 << ' ' << h << std::endl << "255" << std::endl;    
-		for(int curr = 0; curr < w*h*4; curr+=4){
-			for(int i = 0; i < 32; i++){
-				ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (compute_data.at(curr + 2));
-				ofs2 <<  (compute_data.at(curr + 0)) << " " << (compute_data.at(curr + 1)) << " " <<  (compute_data.at(curr + 2)) << " " <<  (compute_data.at(curr + 3)) << '\n';
-			}
-		}
-		ofs.close();
-		ofs2.close();
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glUseProgram(0);
-	}
-	*/
 
 	HorizontalFFTcompute = std::unique_ptr<Compute>(new Compute("shaders/fftHorizontalCompute.glsl"));
 	HorizontalFFTcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
