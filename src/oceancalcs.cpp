@@ -78,8 +78,8 @@ std::vector<GLfloat> Ocean::getGaussianRands(int id){
         case 2:
             return rands2;
         default:
-            return std::vector<GLfloat>(-1.0f);
+            return std::vector<GLfloat>({-1.0f});
     }
-    return std::vector<GLfloat>(-1.0f);
+    return std::vector<GLfloat>({-1.0f});
 }
 

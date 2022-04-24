@@ -142,7 +142,9 @@ void GLState::initializeGL() {
 
 	//H(k,t) compute shader setup
 	HKcompute = std::unique_ptr<Compute>(new Compute("shaders/hKCompute.glsl"));
-	HKcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	HKxcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	HKzcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+
 	HKcomputeshader = HKcompute->program();
 
 	activeText = -1;
@@ -165,7 +167,8 @@ void GLState::initializeGL() {
 	VerticalFFTcomputeshader = VerticalFFTcompute->program();
 
 	InversionFFTcompute = std::unique_ptr<Compute>(new Compute("shaders/invertfftCompute.glsl"));
-	InversionFFTcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	InversionFFTcomputeTexture1 = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	InversionFFTcomputeTexture2 = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
 	InversionFFTcomputeshader = InversionFFTcompute->program();
 
 	activeText = -1;
@@ -267,205 +270,10 @@ void GLState::paintGL() {
 		std::cout<<"Changed Exit\n";
 	}
 
-	{
-	HKcompute->use();
-	glUniform1f(glGetUniformLocation(HKcomputeshader, "T"), currTime);
-	glUniform1i(glGetUniformLocation(HKcomputeshader, "N"), mainOcean->getN());
-	glUniform1i(glGetUniformLocation(HKcomputeshader, "startL"), mainOcean->getL());
-	glUniform1i(glGetUniformLocation(HKcomputeshader, "img_h0"), 1);
-	glUniform1i(glGetUniformLocation(HKcomputeshader, "img_h0MinusK"), 2);
+	runHkShader();
 
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, H0computeTexture->id());
-	H0computeTexture->bindImage(1, GL_READ_ONLY);
-
-	activeText = -1;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-	// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
-
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, H0MinusKcomputeTexture->id());
-	H0MinusKcomputeTexture->bindImage(2, GL_READ_ONLY);
-
-	activeText = -1;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-	// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
-	HKcomputeTexture->bindImage(0, GL_WRITE_ONLY);
-
-	activeText = -1;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-	// std::cout<<activeText<<HKcomputeTexture->id()<<std::endl;
-
-	glDispatchCompute(GRID / 16, GRID / 16, 1);
-	glMemoryBarrier( GL_ALL_BARRIER_BITS );
-
-	/*glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
-	ofs.open("temp/test_hk.ppm", std::ios_base::out | std::ios_base::binary);
-	ofs2.open("temp/test_hk.txt");
-	ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-	for(int curr = 0; curr < w*h*2; curr+=2){
-		ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
-		ofs2 <<  (compute_data.at(curr + 0) * 256) << " " << (compute_data.at(curr + 1) * 256) << " " <<  (0) << '\n';
-	}
-	ofs.close();
-	ofs2.close();*/
+	runFFTShaders(1);
 	
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	// glDisable(GL_TEXTURE_2D);
-	glUseProgram(0);
-	glFinish();
-	}
-
-	int inOut = 0;
-	{
-		HorizontalFFTcompute->use();
-
-		GLuint ssbo;
-		GLuint binding = 0;
-		glGenBuffers(1, &ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "N"), mainOcean->getN());
-		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutTex0"), 1);
-		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutTex1"), 2);
-		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), 0);
-		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
-		HKcomputeTexture->bindImage(1, GL_READ_WRITE);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
-
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
-		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-	
-		for(int i = 0; i < log2N; i++){
-			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), i);
-			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), inOut);
-			glDispatchCompute(GRID / 16, GRID / 16, 1);
-			glFinish();
-			inOut = !inOut;
-		}
-
-
-		glMemoryBarrier( GL_ALL_BARRIER_BITS );
-		
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		// glDisable(GL_TEXTURE_2D);
-		glUseProgram(0);
-		glFinish();
-	}
-
-	
-	{
-		VerticalFFTcompute->use();
-
-		GLuint ssbo;
-		GLuint binding = 0;
-		glGenBuffers(1, &ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "N"), mainOcean->getN());
-		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutTex0"), 1);
-		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutTex1"), 2);
-		// glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutDecide"), 0);
-		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "currStage"), 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
-		HKcomputeTexture->bindImage(1, GL_READ_WRITE);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
-
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
-		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-		// std::cout<<"HERE1"<<std::endl;
-		for(int i = 0; i < log2N; i++){
-			glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "currStage"), i);
-			glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutDecide"), inOut);
-			glDispatchCompute(GRID / 16, GRID / 16, 1);
-			glFinish();
-			inOut = !inOut;
-		}
-		// std::cout<<"HERE2"<<std::endl;
-
-		glMemoryBarrier( GL_ALL_BARRIER_BITS );
-		
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		// glDisable(GL_TEXTURE_2D);
-		glUseProgram(0);
-		glFinish();
-	}
-	
-
-
-	{
-		InversionFFTcompute->use();
-
-		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "N"), mainOcean->getN());
-		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutTex0"), 1);
-		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutTex1"), 2);
-		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "finalOut"), 0);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, HKcomputeTexture->id());
-		HKcomputeTexture->bindImage(1, GL_READ_ONLY);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
-
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
-		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
-
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-		
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture->id());
-		InversionFFTcomputeTexture->bindImage(0, GL_WRITE_ONLY);
-
-		// std::cout<<"HERE1"<<std::endl;
-		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutDecide"), inOut);
-		glDispatchCompute(GRID / 16, GRID / 16, 1);
-		glFinish();
-
-		glMemoryBarrier( GL_ALL_BARRIER_BITS );
-		
-	}
 
 
 	glActiveTexture(GL_TEXTURE1);
@@ -491,11 +299,11 @@ void GLState::paintGL() {
 	glUniform1i(glGetUniformLocation(shader, "dispMap"), 2);
 	glUniform1f(glGetUniformLocation(shader, "speed"), mainOcean->getWindspeed());
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture->id());
-	InversionFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+	glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture1->id());
+	InversionFFTcomputeTexture1->bindImage(2, GL_READ_ONLY);
 	activeText = -1;
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-	std::cout<<activeText<<InversionFFTcomputeTexture->id()<<std::endl;
+	// glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+	// std::cout<<activeText<<InversionFFTcomputeTexture1->id()<<std::endl;
   	glBindVertexArray(vao);
 
   	// glDrawElements(GL_LINES, length, GL_UNSIGNED_INT, NULL);
@@ -546,4 +354,209 @@ void GLState::initShaders() {
 
 	// Get uniform locations
 	// GLint color = glGetUniformLocation(shader, "outCol");
+}
+
+
+
+void GLState::runFFTShaders(int runCount){
+	int inOut = 0;
+	{//HORIZONTAL FFT
+		HorizontalFFTcompute->use();
+
+		GLuint ssbo;
+		GLuint binding = 0;
+		glGenBuffers(1, &ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "N"), mainOcean->getN());
+		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutTex0"), 1);
+		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutTex1"), 2);
+		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), 0);
+		glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, HKzcomputeTexture->id());
+		HKzcomputeTexture->bindImage(1, GL_READ_WRITE);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
+		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
+	
+		for(int i = 0; i < log2N; i++){
+			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), i);
+			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), inOut);
+			glDispatchCompute(GRID / 16, GRID / 16, 1);
+			glFinish();
+			inOut = !inOut;
+		}
+
+
+		glMemoryBarrier( GL_ALL_BARRIER_BITS );
+		
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		// glDisable(GL_TEXTURE_2D);
+		glUseProgram(0);
+		glFinish();
+	}
+
+	
+	{//VERTICAL FFT
+		VerticalFFTcompute->use();
+
+		GLuint ssbo;
+		GLuint binding = 0;
+		glGenBuffers(1, &ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, reverseIndices.size() * sizeof(GLint), reverseIndices.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "N"), mainOcean->getN());
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutTex0"), 1);
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutTex1"), 2);
+		// glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutDecide"), 0);
+		glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "currStage"), 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, HKzcomputeTexture->id());
+		HKzcomputeTexture->bindImage(1, GL_READ_WRITE);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
+		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
+		// std::cout<<"HERE1"<<std::endl;
+		for(int i = 0; i < log2N; i++){
+			glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "currStage"), i);
+			glUniform1i(glGetUniformLocation(VerticalFFTcomputeshader, "inOutDecide"), inOut);
+			glDispatchCompute(GRID / 16, GRID / 16, 1);
+			glFinish();
+			inOut = !inOut;
+		}
+		// std::cout<<"HERE2"<<std::endl;
+
+		glMemoryBarrier( GL_ALL_BARRIER_BITS );
+		
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		// glDisable(GL_TEXTURE_2D);
+		glUseProgram(0);
+		glFinish();
+	}
+	
+	{//INVERSION (-1^x*-1*y*res)
+		InversionFFTcompute->use();
+
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "N"), mainOcean->getN());
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutTex0"), 1);
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutTex1"), 2);
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "finalOut"), 0);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, HKzcomputeTexture->id());
+		HKzcomputeTexture->bindImage(1, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, HorizontalFFTcomputeTexture->id());
+		HorizontalFFTcomputeTexture->bindImage(2, GL_READ_ONLY);
+
+		activeText = -1;
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+		if(runCount == 1){
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture1->id());
+			InversionFFTcomputeTexture1->bindImage(0, GL_WRITE_ONLY);
+		}else{
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture2->id());
+			InversionFFTcomputeTexture2->bindImage(0, GL_WRITE_ONLY);
+		}
+		glUniform1i(glGetUniformLocation(InversionFFTcomputeshader, "inOutDecide"), inOut);
+		glDispatchCompute(GRID / 16, GRID / 16, 1);
+		glFinish();
+
+		glMemoryBarrier( GL_ALL_BARRIER_BITS );
+		
+	}
+}
+
+
+void GLState::runHkShader(){
+	HKcompute->use();
+	glUniform1f(glGetUniformLocation(HKcomputeshader, "T"), currTime);
+	glUniform1i(glGetUniformLocation(HKcomputeshader, "N"), mainOcean->getN());
+	glUniform1i(glGetUniformLocation(HKcomputeshader, "startL"), mainOcean->getL());
+	glUniform1i(glGetUniformLocation(HKcomputeshader, "img_h0"), 1);
+	glUniform1i(glGetUniformLocation(HKcomputeshader, "img_h0MinusK"), 2);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, H0computeTexture->id());
+	H0computeTexture->bindImage(1, GL_READ_ONLY);
+
+	activeText = -1;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+	// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, H0MinusKcomputeTexture->id());
+	H0MinusKcomputeTexture->bindImage(2, GL_READ_ONLY);
+
+	activeText = -1;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+	// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, HKzcomputeTexture->id());
+	HKzcomputeTexture->bindImage(0, GL_WRITE_ONLY);
+
+	activeText = -1;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
+	// std::cout<<activeText<<HKcomputeTexture->id()<<std::endl;
+
+	glDispatchCompute(GRID / 16, GRID / 16, 1);
+	glMemoryBarrier( GL_ALL_BARRIER_BITS );
+
+	/*glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
+	ofs.open("temp/test_hk.ppm", std::ios_base::out | std::ios_base::binary);
+	ofs2.open("temp/test_hk.txt");
+	ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
+	for(int curr = 0; curr < w*h*2; curr+=2){
+		ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
+		ofs2 <<  (compute_data.at(curr + 0) * 256) << " " << (compute_data.at(curr + 1) * 256) << " " <<  (0) << '\n';
+	}
+	ofs.close();
+	ofs2.close();*/
+	
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	// glDisable(GL_TEXTURE_2D);
+	glUseProgram(0);
+	glFinish();
 }

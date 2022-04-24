@@ -27,6 +27,8 @@ public:
 protected:
 	// Initialization
 	void initShaders();
+	void runFFTShaders(int runCount);
+	void runHkShader();
 	GLint reverse(GLint index);
 	// OpenGL state
 	GLuint shader;		// GPU shader program
@@ -69,7 +71,8 @@ private:
 
 	std::unique_ptr<Compute> HKcompute;
 	GLuint HKcomputeshader;
-	std::unique_ptr<Texture> HKcomputeTexture;
+	std::unique_ptr<Texture> HKxcomputeTexture;
+	std::unique_ptr<Texture> HKzcomputeTexture;
 
 	std::unique_ptr<Compute> Butterflycompute;
 	GLuint Butterflycomputeshader;
@@ -85,8 +88,8 @@ private:
 
 	std::unique_ptr<Compute> InversionFFTcompute;
 	GLuint InversionFFTcomputeshader;
-	std::unique_ptr<Texture> InversionFFTcomputeTexture;
-
+	std::unique_ptr<Texture> InversionFFTcomputeTexture1;
+	std::unique_ptr<Texture> InversionFFTcomputeTexture2;
 
 	GLfloat currTime;
 	GLint log2N;
