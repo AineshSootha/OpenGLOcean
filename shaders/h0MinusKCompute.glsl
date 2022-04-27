@@ -11,7 +11,7 @@ uniform int startL;
 uniform int V;
 uniform int A;
 uniform float g = 9.81;
-vec2 windDir = normalize(vec2(1.0,1.0));
+uniform vec2 windDir;
 
 vec2 gaussianRandoms(){
     vec2 texCoord = vec2(gl_GlobalInvocationID.xy) / float(N);
@@ -22,18 +22,25 @@ vec2 gaussianRandoms(){
     return vec2(factor1 * cos(factor2), factor1 * sin(factor2)); 
 }
 
+int alias(int x)
+{
+    if (x > N / 2)
+        x -= N;
+    return x;
+}
+
 void main() {
   ivec2 pos = ivec2( gl_GlobalInvocationID.xy );
     /* Not sure why SegFaults if using xDash yDash
     float xDash = (pos.x - float(N) / 2); //Subtract N/2 otherwise range is 0->N
     float yDash = (pos.y - float(N) / 2);
     */
-  vec2 k = vec2((2*M_PI*(pos.x - float(N) / 2))/startL, (2*M_PI*(pos.y - float(N) / 2))/startL); 
+  vec2 k = vec2((2*M_PI*(alias(pos.x)))/startL, (2*M_PI*(alias(pos.y)))/startL); 
   vec2 gaussianRands = gaussianRandoms();
   float L = V * V / g;
   float magK = length(k) < 0.0001 ? 0.0001 : length(k);
 
-  float Phk = A * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 0.5, 2.0)) * pow(dot(normalize(-k), normalize(windDir)), 6.0) / (pow(magK, 4));
-  float h0k = clamp(sqrt(Phk) / sqrt(2.0), -4000, 4000);  
+  float Phk = 0.5 * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 0.1, 2.0)) * pow(dot(normalize(-k), normalize(windDir)), 8.0) / (pow(magK, 4));
+  float h0k = clamp(sqrt(Phk) / sqrt(2.0), -100, 100);  
   imageStore( img_output, pos, vec4(gaussianRands.xy*h0k,  magK, 1.0 ) );
 }

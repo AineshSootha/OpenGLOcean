@@ -14,8 +14,8 @@ Ocean::Ocean(GLint _N, GLint _L, GLint _ws, GLint _A, int w /*= 256*/, int h /*=
     L(_L),
     windspeed(_ws),
     A(_A),
-    rands1(w*h*3, 0.0f),
-    rands2(w*h*3, 0.0f) {}
+    rands1(w*h*4, 0.0f),
+    rands2(w*h*4, 0.0f) {}
 
 int Ocean::generateRands(int runCall, int w = 256, int h = 256){
     // ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;
@@ -34,13 +34,15 @@ int Ocean::generateRands(int runCall, int w = 256, int h = 256){
         greens2.at(curr) = rand() % (256);
         greens2.at(curr) /= 256.0f;
     }
-    for(int curr = 0; curr < w*h*3; curr+=3){
-        rands1.at(curr + 0) = reds1.at(curr/3); 
-        rands1.at(curr + 1) = greens1.at(curr/3); 
+    for(int curr = 0; curr < w*h*4; curr+=4){
+        rands1.at(curr + 0) = reds1.at(curr/4); 
+        rands1.at(curr + 1) = greens1.at(curr/4); 
         rands1.at(curr + 2) = 0.0f; 
-        rands2.at(curr + 0) = reds2.at(curr/3); 
-        rands2.at(curr + 1) = greens2.at(curr/3); 
+        rands1.at(curr + 3) = 1.0f; 
+        rands2.at(curr + 0) = reds2.at(curr/4); 
+        rands2.at(curr + 1) = greens2.at(curr/4); 
         rands2.at(curr + 2) = 0.0f; 
+        rands2.at(curr + 3) = 1.0f; 
     }
 
     //TESTING ONLY

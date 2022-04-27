@@ -11,16 +11,25 @@ uniform int startL;
 uniform int V;
 uniform int A;
 uniform float g = 9.81;
-vec2 windDir = normalize(vec2(1.0,1.0));
+uniform vec2 windDir;
 
 vec2 gaussianRandoms(){
-    vec2 texCoord = vec2(gl_GlobalInvocationID.xy) / float(N);
+    vec2 texCoord = vec2(gl_GlobalInvocationID.xy) / vec2(float(N));
     float random1 = clamp(texture(randSampler1, texCoord).r, 0.001, 1.0);
     float random2 = clamp(texture(randSampler1, texCoord).g, 0.001, 1.0);
     float factor1 = sqrt(-2*log(random1));
     float factor2 = 2*M_PI*random2;
     return vec2(factor1 * cos(factor2), factor1*sin(factor2)); 
 }
+
+
+int alias(int x)
+{
+    if (x > N / 2)
+        x -= N;
+    return x;
+}
+
 
 void main() {
   // base pixel colour for image
@@ -29,12 +38,12 @@ void main() {
     float xDash = (pos.x - float(N) / 2); //Subtract N/2 otherwise range is 0->N
     float yDash = (pos.y - float(N) / 2);
     */
-    vec2 k = vec2((2*M_PI*(pos.x - float(N) / 2))/startL, (2*M_PI*(pos.y - float(N) / 2))/startL); 
+    vec2 k = vec2((2*M_PI*(alias(pos.x)))/startL, (2*M_PI*(alias(pos.y)))/startL); 
     vec2 gaussianRands = gaussianRandoms();
     float L = V * V / g;
     float magK = length(k) < 0.0001 ? 0.0001 : length(k);
 
-    float Phk = A * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 0.5, 2.0)) * pow(dot(normalize(k), normalize(windDir)), 6.0) / (pow(magK, 4));
-    float h0k = clamp(sqrt(Phk) / sqrt(2.0), -4000, 4000);  
-    imageStore(img_output, pos, vec4(gaussianRands.xy*h0k,  magK, 1.0 ) );
+    float Phk = 0.5 * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 1, 2.0)) * pow(dot(normalize(k), normalize(windDir)), 8.0) / (pow(magK, 4));
+    float h0k = clamp(sqrt(Phk) / sqrt(2.0), -100, 100);  
+    imageStore(img_output, pos, vec4(h0k * gaussianRands,  magK, 1.0 ) );
 }

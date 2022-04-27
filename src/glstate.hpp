@@ -1,9 +1,12 @@
 #ifndef GLSTATE_HPP
 #define GLSTATE_HPP
-#include <GL/glew.h>
+// #include <GL/glew.h>
 #include <string>
 #include <memory>
 #include <glm/glm.hpp>
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
 // #include "gl_core_3_3.h"
 // #include "camera.hpp"
 #include "oceancalcs.hpp"
@@ -29,6 +32,7 @@ protected:
 	void initShaders();
 	void runFFTShaders(int runCount);
 	void runHkShader();
+	void runCombineMapsShader();
 	GLint reverse(GLint index);
 	// OpenGL state
 	GLuint shader;		// GPU shader program
@@ -72,7 +76,9 @@ private:
 	std::unique_ptr<Compute> HKcompute;
 	GLuint HKcomputeshader;
 	std::unique_ptr<Texture> HKxcomputeTexture;
+	std::unique_ptr<Texture> HKycomputeTexture;
 	std::unique_ptr<Texture> HKzcomputeTexture;
+
 
 	std::unique_ptr<Compute> Butterflycompute;
 	GLuint Butterflycomputeshader;
@@ -81,20 +87,35 @@ private:
 	std::unique_ptr<Compute> HorizontalFFTcompute;
 	GLuint HorizontalFFTcomputeshader;
 	std::unique_ptr<Texture> HorizontalFFTcomputeTexture;
+	std::unique_ptr<Texture> HorizontalFFTcomputeTexture2;
+	std::unique_ptr<Texture> HorizontalFFTcomputeTexture3;
+
 
 	std::unique_ptr<Compute> VerticalFFTcompute;
 	GLuint VerticalFFTcomputeshader;
 	std::unique_ptr<Texture> VerticalFFTcomputeTexture;
+	std::unique_ptr<Texture> VerticalFFTcomputeTexture2;
+	std::unique_ptr<Texture> VerticalFFTcomputeTexture3;
+
+
 
 	std::unique_ptr<Compute> InversionFFTcompute;
 	GLuint InversionFFTcomputeshader;
 	std::unique_ptr<Texture> InversionFFTcomputeTexture1;
 	std::unique_ptr<Texture> InversionFFTcomputeTexture2;
+	std::unique_ptr<Texture> InversionFFTcomputeTexture3;
 
-	GLfloat currTime;
+
+	std::unique_ptr<Compute> CombineMapscompute;
+	GLuint CombineMapscomputeshader;
+	std::unique_ptr<Texture> CombineMapscomputeTexture;
+
+	double currTime;
 	GLint log2N;
 	std::vector<GLint> reverseIndices;
 	bool parametersChanged;
+
+	glm::vec2 windDir;
 	// GLuint computeshader;
 };
 

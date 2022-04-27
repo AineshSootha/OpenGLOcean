@@ -3,19 +3,29 @@
 
 
 layout(local_size_x = 16, local_size_y = 16) in;
-layout(rgba32f, binding = 0) writeonly uniform image2D img_output;
+layout(rgba32f, binding = 0) writeonly uniform image2D hkz;
+layout(rgba32f, binding = 3) writeonly uniform image2D hkx;
+layout(rgba32f, binding = 4) writeonly uniform image2D hky;
+
 layout(rgba32f, binding = 1) readonly uniform image2D img_h0;
 layout(rgba32f, binding = 2) readonly uniform image2D img_h0MinusK;
+
 
 uniform float T;
 uniform int N;
 uniform int startL;
 uniform float g = 9.81;
 
+int alias(int x)
+{
+    if (x > N / 2)
+        x -= N;
+    return x;
+}
 
 
 vec2 k_(ivec2 pos){
-  vec2 k = vec2((2*M_PI*(pos.x - float(N) / 2))/startL, (2*M_PI*(pos.y - float(N) / 2))/startL); 
+  vec2 k = vec2((2*M_PI*(alias(pos.x)))/startL, (2*M_PI*(alias(pos.y)))/startL); 
   return k;
 }
 
@@ -30,6 +40,7 @@ vec2 multiply(vec2 h0, vec2 wkt){
 vec2 conjugate(vec2 complexNum){
   return vec2(complexNum.x, -complexNum.y);
 }
+
 
 void main() {
   // base pixel colour for image
@@ -48,8 +59,17 @@ void main() {
   vec2 finalRes = prelimRes1 + prelimRes2;
   vec2 ux = vec2(0.0, -k.x / magK);
   vec2 uy = vec2(0.0, -k.y / magK);
-  vec4 res = vec4(multiply(ux, finalRes), multiply(uy, finalRes));
+  vec2 resZ = vec2(clamp(finalRes.x, -100, 100), clamp(finalRes.y, -100, 100));
+  vec2 resY = vec2(multiply(finalRes, uy));
+  vec2 resX = vec2(multiply(finalRes, ux));
 
-
-  imageStore(img_output, pos, vec4(res));  
+  if(k.x == 0.0 && k.y == 0.0){
+    resZ = vec2(0.0);
+    resX = vec2(0.0);
+    resY = vec2(0.0);
+  }
+  
+  imageStore(hkz, pos, vec4(resZ, resZ));  
+  imageStore(hkx, pos, vec4(resX, resX));  
+  imageStore(hky, pos, vec4(resY, resY));
 }
