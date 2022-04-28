@@ -32,6 +32,9 @@ void keyRelease(unsigned char key, int x, int y);
 void idle();
 void menu(int cmd);
 void cleanup();
+void processInput(GLFWwindow *window);
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 #define _WIDTH 1280
 #define _HEIGHT 720
 
@@ -92,6 +95,10 @@ int main(int argc, char** argv) {
 
 	while(!glfwWindowShouldClose(window))
 	{
+		float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+		processInput(window);
 		display(window);
 		glfwPollEvents();    
 	}
@@ -112,6 +119,23 @@ void display(GLFWwindow* window) {
 }
 
 
+void processInput(GLFWwindow *window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    float cameraSpeed = static_cast<float>(2.5 * deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        glState->cameraPos += cameraSpeed * glState->cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        glState->cameraPos -= cameraSpeed * glState->cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        glState->cameraPos -= glm::normalize(glm::cross(glState->cameraFront, glState->cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        glState->cameraPos += glm::normalize(glm::cross(glState->cameraFront, glState->cameraUp)) * cameraSpeed;
+	if(glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+		glState->increaseWindDir();
+}
 // Called when the window is closed or the event loop is otherwise exited
 void cleanup() {
 	// Delete the GLState object, calling its destructor,

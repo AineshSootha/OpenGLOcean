@@ -23,27 +23,22 @@ vec2 gaussianRandoms(){
 }
 
 
-int alias(int x)
-{
-    if (x > N / 2)
-        x -= N;
-    return x;
-}
-
 
 void main() {
   // base pixel colour for image
-    ivec2 pos = ivec2( gl_GlobalInvocationID.xy );    // get value stored in the image
+    ivec2 pos = ivec2( gl_GlobalInvocationID.xy);    // get value stored in the image
+    float n = pos.x > float(N) / 2 ? pos.x - float(N) :  pos.x;
+    float m = pos.y > float(N) / 2 ? pos.y - float(N) :  pos.y;
     /* Not sure why SegFaults if using xDash yDash
     float xDash = (pos.x - float(N) / 2); //Subtract N/2 otherwise range is 0->N
     float yDash = (pos.y - float(N) / 2);
     */
-    vec2 k = vec2((2*M_PI*(alias(pos.x)))/startL, (2*M_PI*(alias(pos.y)))/startL); 
+    vec2 k = 2.0 * M_PI * vec2(n, m) / startL; 
     vec2 gaussianRands = gaussianRandoms();
     float L = V * V / g;
     float magK = length(k) < 0.0001 ? 0.0001 : length(k);
 
-    float Phk = 0.5 * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 1, 2.0)) * pow(dot(normalize(k), normalize(windDir)), 8.0) / (pow(magK, 4));
-    float h0k = clamp(sqrt(Phk) / sqrt(2.0), -100, 100);  
+    float Phk = 4 * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 0.1, 2.0)) * pow(dot(normalize(k), normalize(windDir)), 8.0) / (pow(magK, 4));
+    float h0k = clamp(sqrt(Phk) / sqrt(2.0), -200, 200);  
     imageStore(img_output, pos, vec4(h0k * gaussianRands,  magK, 1.0 ) );
 }

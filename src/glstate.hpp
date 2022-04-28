@@ -25,8 +25,13 @@ public:
 	GLState& operator=(GLState&& other) = delete;
 	// Callbacks
 	void initializeGL();
+	void increaseWindDir();
+
 	void paintGL();
 	void cleanup();
+	glm::vec3 cameraPos;
+	glm::vec3 cameraFront;
+	glm::vec3 cameraUp;
 protected:
 	// Initialization
 	void initShaders();
@@ -116,6 +121,9 @@ private:
 	bool parametersChanged;
 
 	glm::vec2 windDir;
+
+
+
 	// GLuint computeshader;
 };
 

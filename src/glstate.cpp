@@ -8,7 +8,7 @@
 #include "util.hpp"
 
 
-#define RES 1024
+#define RES 512
 #define GRID 256
 
 //TESTING VARIABLES
@@ -16,6 +16,8 @@ std::ofstream ofs, ofs2;
 int w = GRID, h = GRID;
 std::vector<float> compute_data(w*h*2);
 std::vector<float> compute_data3(w*h*3);
+std::vector<float> compute_data4(w*h*4);
+
 GLint activeText = -1;
 //
 
@@ -30,7 +32,10 @@ GLState::GLState() :
 	camCoords(0.0f, -0.5f, 0.5f),
 	reverseIndices(GRID, 0),
 	vertices(vcount * vcount),
-	windDir(1.0f, 1.0f),
+	windDir(1.0f, 0.0f),
+	cameraPos(0.0f, 0.0f,  3.0f),
+	cameraFront(0.0f, 0.0f, -1.0f),
+	cameraUp(0.0f, 1.0f,  0.0f),
 	// indices(32*32*6),//totalVcount),
 	parametersChanged(true) {}
 	
@@ -56,6 +61,11 @@ GLint GLState::reverse(GLint index){
 	return res;
 }
 
+void GLState::increaseWindDir(){
+	windDir.y += 1.0f;
+	windDir = glm::normalize(windDir);
+	parametersChanged = true;
+}
 // Called when OpenGL context is created (some time after construction)
 void GLState::initializeGL() {
 	// General settings
@@ -70,8 +80,8 @@ void GLState::initializeGL() {
 			float y = 2 * (float)j/(float)RES;
 			float z = 0.0;
 			vertices[idx++].pos = (glm::vec3(x, y, z));
-			float u = ((float)x / GRID) + 0.5f;
-			float v = ((float)z / GRID) + 0.5f;
+			float u = ((float)x / RES) + 0.5f;
+			float v = ((float)z / RES) + 0.5f;
 			// vertices[idx++].tex = glm::vec2(u, v) * 2.0f;
 		}
 	}
@@ -103,6 +113,7 @@ void GLState::initializeGL() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuf);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (void*)0);
+	// glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2*sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
     glBindVertexArray(0); 
@@ -111,7 +122,7 @@ void GLState::initializeGL() {
 
 
 	//GaussianRand Gen
-	mainOcean = std::unique_ptr<Ocean>(new Ocean(GRID, 1000, 30, 2, GRID, GRID));
+	mainOcean = std::unique_ptr<Ocean>(new Ocean(GRID, 1000, 40, 2, GRID, GRID));
 	mainOcean->generateRands(1, GRID,GRID);
 	
 	
@@ -208,7 +219,7 @@ void GLState::initializeGL() {
 // Called when window requests a screen redraw
 void GLState::paintGL() {
 	glViewport(-1.0,  -1.0, 2048, 2048);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.4f, 0.3f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	if(parametersChanged){
@@ -327,7 +338,7 @@ void GLState::paintGL() {
 	glUseProgram(shader);
 	glm::mat4 xform(1.0f);
 	glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
-	glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -camCoords.z));
+	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 	view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	view = glm::rotate(view, glm::radians(camCoords.x), glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 pos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.0f,0.0f));
@@ -459,36 +470,47 @@ void GLState::runFFTShaders(int runCount){
 		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 		// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
 
-		
+		// glActiveTexture(GL_TEXTURE1);
+		// glBindTexture(GL_TEXTURE_2D, HKzcomputeTexture->id());
+		// HKzcomputeTexture->bindImage(1, GL_READ_WRITE);
 
-		activeText = -1;
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
-		// std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
-	
+		// // std::cout<<activeText<<H0MinusKcomputeTexture->id()<<std::endl;
+		// glGetTexImage( GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, compute_data4.data() );
+		// ofs.open("temp/fftInput1.ppm", std::ios_base::out | std::ios_base::binary);
+		// ofs2.open("temp/fftInput1.txt");
+		// ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;   
+		// for(int curr = 0; curr < w*h*4; curr+=4){
+		// 	ofs << (char) (compute_data4.at(curr + 0) * 256) << (char) (compute_data4.at(curr + 1) * 256) << (char) (compute_data4.at(curr + 2) * 256);
+		// 	ofs2 <<  (compute_data4.at(curr + 0)) << " " << (compute_data4.at(curr + 1)) << " " <<  ((compute_data4.at(curr + 2))) << " " <<  ((compute_data4.at(curr + 3)))  << '\n';
+		// }
+		// ofs.close();
+		// ofs2.close();
 		for(int i = 0; i < log2N; i++){
 			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "currStage"), i);
 			glUniform1i(glGetUniformLocation(HorizontalFFTcomputeshader, "inOutDecide"), inOut);
 			glDispatchCompute(GRID / 16, GRID / 16, 1);
 			glFinish();
+			glMemoryBarrier( GL_ALL_BARRIER_BITS );
 			// TESTING ONLY - VerticalFFTTest
-			
+			// std::string fname = "temp/test_HorizontalFFT" + std::to_string(i);
+			// glGetTexImage( GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, compute_data4.data() );
+			// ofs.open(fname + ".ppm", std::ios_base::out | std::ios_base::binary);
+			// ofs2.open(fname + ".txt");
+			// ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;   
+			// ofs2 << "CurrStage: " << i << std::endl; 
+			// for(int curr = 0; curr < w*h*4; curr+=4){
+			// 	ofs << (char) (compute_data4.at(curr + 0) * 256) << (char) (compute_data4.at(curr + 1) * 256) << (char) (compute_data4.at(curr + 2) * 256);
+			// 	ofs2 <<  (compute_data4.at(curr + 0)) << " " << (compute_data4.at(curr + 1)) << " " <<  ((compute_data4.at(curr + 2))) << " " <<  ((compute_data4.at(curr + 3)))  << '\n';
+			// }
+			// ofs.close();
+			// ofs2.close();
 			// exit(0);
 			inOut = !inOut;
 		}
+		// exit(0);
 
-
-		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 		
-		// glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, compute_data3.data() );
-		// ofs.open("temp/test_HorizontalFFT.ppm", std::ios_base::out | std::ios_base::binary);
-		// ofs2.open("temp/test_HorizontalFFT.txt");
-		// ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-		// for(int curr = 0; curr < w*h*3; curr+=3){
-		// 	ofs << (char) (compute_data3.at(curr + 0) * 256) << (char) (compute_data3.at(curr + 1) * 256) << (char) (compute_data3.at(curr + 2) * 256);
-		// 	ofs2 <<  (compute_data3.at(curr + 0)) << " " << (compute_data3.at(curr + 1)) << " " <<  ((compute_data3.at(curr + 2))) << '\n';
-		// }
-		// ofs.close();
-		// ofs2.close();
+		
 		
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, 0);
@@ -810,9 +832,9 @@ void GLState::runCombineMapsShader(){
 	glMemoryBarrier( GL_ALL_BARRIER_BITS );
 
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, CombineMapscomputeTexture->id());
-	CombineMapscomputeTexture->bindImage(0, GL_READ_ONLY);	
+	// glActiveTexture(GL_TEXTURE0);
+	// glBindTexture(GL_TEXTURE_2D, CombineMapscomputeTexture->id());
+	// CombineMapscomputeTexture->bindImage(0, GL_READ_ONLY);	
 	// glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, compute_data3.data() );
 	// ofs.open("temp/test_combined.ppm", std::ios_base::out | std::ios_base::binary);
 	// ofs2.open("temp/test_combined.txt");

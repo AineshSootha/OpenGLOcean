@@ -24,8 +24,8 @@ int alias(int x)
 }
 
 
-vec2 k_(ivec2 pos){
-  vec2 k = vec2((2*M_PI*(alias(pos.x)))/startL, (2*M_PI*(alias(pos.y)))/startL); 
+vec2 k_(vec2 pos){
+  vec2 k = vec2((2*M_PI*(pos.x))/startL, (2*M_PI*(pos.y))/startL); 
   return k;
 }
 
@@ -44,15 +44,18 @@ vec2 conjugate(vec2 complexNum){
 
 void main() {
   // base pixel colour for image
-  ivec2 pos = ivec2( gl_GlobalInvocationID.xy ); 
+  ivec2 pos_ = ivec2(gl_GlobalInvocationID.xy);
+  float n = pos_.x > float(N) / 2 ? pos_.x - float(N) :  pos_.x;
+  float m = pos_.y > float(N) / 2 ? pos_.y - float(N) :  pos_.y;
+  vec2 pos = vec2(n,m);
   vec2 k = k_(pos);
   float magK = length(k) < 0.0001 ? 0.0001 : length(k);
   float w = sqrt(magK * g);
   float realW = cos(w*T);
   float imagW = sin(w*T);
-  vec2 h0k = imageLoad(img_h0, pos).rg;
+  vec2 h0k = imageLoad(img_h0, pos_).rg;
   vec2 prelimRes1 = multiply(h0k, vec2(realW, imagW));
-  vec2 h0MinusK = imageLoad(img_h0MinusK, pos).rg;
+  vec2 h0MinusK = imageLoad(img_h0MinusK, pos_).rg;
   h0MinusK = conjugate(h0MinusK);
   vec2 prelimRes2 = multiply(h0MinusK, vec2(realW, -imagW));
   
@@ -60,8 +63,8 @@ void main() {
   vec2 ux = vec2(0.0, -k.x / magK);
   vec2 uy = vec2(0.0, -k.y / magK);
   vec2 resZ = vec2(clamp(finalRes.x, -100, 100), clamp(finalRes.y, -100, 100));
-  vec2 resY = vec2(multiply(finalRes, uy));
-  vec2 resX = vec2(multiply(finalRes, ux));
+  vec2 resY = vec2(multiply(resZ, uy));
+  vec2 resX = vec2(multiply(resZ, ux));
 
   if(k.x == 0.0 && k.y == 0.0){
     resZ = vec2(0.0);
@@ -69,7 +72,7 @@ void main() {
     resY = vec2(0.0);
   }
   
-  imageStore(hkz, pos, vec4(resZ, resZ));  
-  imageStore(hkx, pos, vec4(resX, resX));  
-  imageStore(hky, pos, vec4(resY, resY));
+  imageStore(hkz, pos_, vec4(resZ, resZ));  
+  imageStore(hkx, pos_, vec4(resX, resX));  
+  imageStore(hky, pos_, vec4(resY, resY));
 }

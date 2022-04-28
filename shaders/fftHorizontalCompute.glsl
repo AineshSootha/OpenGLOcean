@@ -26,7 +26,7 @@ vec2 twiddleCompute(int x){
     // twiddleExponent = 2.0 * M_PI * twiddleExponent / float(N);
     float twiddleExponent = x & int(pow(2, currStage + 1) - 1);
     twiddleExponent = -M_PI * float(twiddleExponent) / float(N);
-    return vec2(cos(twiddleExponent), sin(twiddleExponent));
+    return vec2(cos(twiddleExponent) + 0.0, sin(twiddleExponent) + 0.0);
 }
 
 
@@ -66,16 +66,19 @@ void main(){
         inputVec2 = imageLoad(inOutTex1, ivec2(secondIdx, pos.y));
     }
     vec2 res = inputVec1.xy;
-    if(topOrBottom < pow(2, currStage))
-        res += multiply(twiddle, inputVec2.xy); 
-    else{
-        res -= multiply(twiddle, inputVec2.xy); 
-    }
-
-    if(inOutDecide == 0){
-        imageStore(inOutTex1, pos,  vec4(res, res));
+    float yesOrNo = 0.0;
+    if(topOrBottom < pow(2, currStage)){
+        res += multiply(twiddle, inputVec2.xy);
+        yesOrNo = 1.0; 
     }else{
-        imageStore(inOutTex0, pos,  vec4(res, res));
+        res -= multiply(twiddle, inputVec2.xy);
+        yesOrNo = -1.0 ;
+    }
+    vec4 finalRes=  vec4(res,res);
+    if(inOutDecide == 0){
+        imageStore(inOutTex1, pos, finalRes);
+    }else{
+        imageStore(inOutTex0, pos, finalRes);
     }
 }
 

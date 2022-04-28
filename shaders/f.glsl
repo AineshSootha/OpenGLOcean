@@ -8,7 +8,9 @@ out vec4 outCol;	// Final pixel color
 
 void main() {
 	// Visualize normals as colors
-	vec4 currCol = vec4(0.3,1.0,bump.w,1.0);
+	
+	vec4 currCol = vec4(0.2,0.8,0.8,1.0);
+
 	// // if(heightVal > 0.5*0.05){
 	// // 	currCol = vec4(1.0, 1.0, 1.0, 1.0);
 	// // }

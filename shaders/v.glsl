@@ -28,13 +28,21 @@ void main() {
 	
 	// vec2 texCoord = pos.xy / float(256);
 	// vec2 texCoord = vec2(pos.xy) / float(256);
-	vec2 texCoord = (pos.xy);
-	float h = texture(dispMap, texCoord + windDir * speed).b * 0.05;// ).r;
-	float xNew = texture(dispMap, texCoord).r * 0.05;// + windDir * speed).r;
-	float yNew = texture(dispMap, texCoord).g * 0.05;// + windDir * speed).r;
-	vec2 tex_coord = pos.xy / 256.0;
+	vec2 texCoord = pos.xy;
+	vec2 further = texCoord / 16.0;
+	vec2 evenFurther = texCoord / 64.0;
+
+
+	
+	float h = texture(dispMap, texCoord).b / 256.0 * 32.0;// ).r;
+	float hFurther = texture(dispMap, further).b / 256.0 * 32.0;;// ).r;
+	float hEvenFurther = texture(dispMap, evenFurther).b / 256.0 * 32.0;;// ).r;
+
+	float xNew = texture(dispMap, texCoord).r / 256.0 * 16.0;// + windDir * speed).r;
+	float yNew = texture(dispMap, texCoord).g / 256.0 * 16.0;// + windDir * speed).r;
 	heightVal = h;
-	vec3 vtx = vec3(pos.x - xNew,  pos.y -yNew, h); //+ texture(dispMap, texCoord).rgb;
+
+	vec3 vtx = vec3(pos.x - xNew,  pos.y -yNew, h + hFurther + hEvenFurther); //+ texture(dispMap, texCoord).rgb;
 	// vtx.y = (sin(2.0 * vtx.x + a_time/1000.0 ) * cos(1.5 * vtx.y + a_time/1000.0) * 0.2);
 	gl_Position =  xform* vec4(vtx,1.0);// + imageLoad(img_hk, pos).xyz, 1.0) ; 
 
@@ -45,7 +53,7 @@ void main() {
     float s12 = textureOffset(dispMapZ, texCoord, off.yz).x;
     vec3 va = normalize(vec3(size.xy,s21-s01));
     vec3 vb = normalize(vec3(size.yx,s12-s10));
-    bump = vec4( cross(va,vb), s11 );
+    bump = vec4( texCoord.xy, h, 1.0 );
 	// if(pos.x > -0.5 && pos.x < 0.5 && pos.y > -0.5 && pos.y < 0.5){
 	// col = vec3(1.0,1.0,1.0);
 	//}
