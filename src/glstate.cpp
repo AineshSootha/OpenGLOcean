@@ -208,11 +208,18 @@ void GLState::initializeGL() {
 	CombineMapscomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
 	CombineMapscomputeshader = CombineMapscompute->program();
 	
+
+	NormalMapcompute = std::unique_ptr<Compute>(new Compute("shaders/normalMapCompute.glsl"));
+	NormalMapcomputeTexture = std::unique_ptr<Texture>(new Texture(GRID, GRID, NULL, GL_RGBA32F));
+	NormalMapcomputeshader = NormalMapcompute->program();
+	
+
 	activeText = -1;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &activeText);
 	// std::cout<<activeText<<H0computeTexture->id()<<std::endl;
 
 }
+
 
 
 
@@ -323,7 +330,7 @@ void GLState::paintGL() {
 
 	runCombineMapsShader();
 
-
+	runNormalMapShader();
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -817,15 +824,15 @@ void GLState::runCombineMapsShader(){
 	glBindTexture(GL_TEXTURE_2D, CombineMapscomputeTexture->id());
 	CombineMapscomputeTexture->bindImage(0, GL_WRITE_ONLY);
 	
-	glActiveTexture(GL_TEXTURE3);
+	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture1->id());
 	InversionFFTcomputeTexture1->bindImage(1, GL_READ_ONLY);
 	
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture2->id());
 	InversionFFTcomputeTexture2->bindImage(2, GL_READ_ONLY);
 	
-	glActiveTexture(GL_TEXTURE2);
+	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, InversionFFTcomputeTexture3->id());
 	InversionFFTcomputeTexture3->bindImage(3, GL_READ_ONLY);
 	glDispatchCompute(GRID / 16, GRID / 16, 1);
@@ -846,4 +853,19 @@ void GLState::runCombineMapsShader(){
 	// ofs.close();
 	// ofs2.close();
 	// exit(0);
+}
+
+void GLState::runNormalMapShader(){
+	NormalMapcompute->use();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, CombineMapscomputeTexture->id());
+	CombineMapscomputeTexture->bindImage(0, GL_READ_ONLY);
+	
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, NormalMapcomputeTexture->id());
+	NormalMapcomputeTexture->bindImage(1, GL_WRITE_ONLY);
+	
+	glDispatchCompute(GRID / 16, GRID / 16, 1);
+	glMemoryBarrier( GL_ALL_BARRIER_BITS );
 }

@@ -38,6 +38,7 @@ protected:
 	void runFFTShaders(int runCount);
 	void runHkShader();
 	void runCombineMapsShader();
+	void runNormalMapShader();
 	GLint reverse(GLint index);
 	// OpenGL state
 	GLuint shader;		// GPU shader program
@@ -114,6 +115,10 @@ private:
 	std::unique_ptr<Compute> CombineMapscompute;
 	GLuint CombineMapscomputeshader;
 	std::unique_ptr<Texture> CombineMapscomputeTexture;
+
+	std::unique_ptr<Compute> NormalMapcompute;
+	GLuint NormalMapcomputeshader;
+	std::unique_ptr<Texture> NormalMapcomputeTexture;
 
 	double currTime;
 	GLint log2N;
