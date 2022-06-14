@@ -38,7 +38,7 @@ void main() {
     float L = V * V / g;
     float magK = length(k) < 0.0001 ? 0.0001 : length(k);
 
-    float Phk = 4 * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 0.1, 2.0)) * pow(dot(normalize(k), normalize(windDir)), 8.0) / (pow(magK, 4));
-    float h0k = clamp(sqrt(Phk) / sqrt(2.0), -200, 200);  
+    float Phk = 2 * exp(-1.0 / pow(magK * L, 2.0)) * exp(pow(-magK * 0.1, 2.0)) * pow(dot(normalize(k), normalize(windDir)), 8.0) / (pow(magK, 4));
+    float h0k = clamp(sqrt(Phk) / sqrt(2.0), -400, 400);  
     imageStore(img_output, pos, vec4(h0k * gaussianRands,  magK, 1.0 ) );
 }

@@ -16,12 +16,7 @@ uniform int N;
 uniform int startL;
 uniform float g = 9.81;
 
-int alias(int x)
-{
-    if (x > N / 2)
-        x -= N;
-    return x;
-}
+
 
 
 vec2 k_(vec2 pos){

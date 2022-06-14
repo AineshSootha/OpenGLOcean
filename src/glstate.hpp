@@ -26,7 +26,13 @@ public:
 	// Callbacks
 	void initializeGL();
 	void increaseWindDir();
+	void decreaseWindDir();
+	void increaseWindSpeed();
+	void decreaseWindSpeed();
+	void triggerWireframe();
 
+
+	void resize(GLuint w, GLuint h);
 	void paintGL();
 	void cleanup();
 	glm::vec3 cameraPos;
@@ -124,7 +130,7 @@ private:
 	GLint log2N;
 	std::vector<GLint> reverseIndices;
 	bool parametersChanged;
-
+	bool wireframe;
 	glm::vec2 windDir;
 
 

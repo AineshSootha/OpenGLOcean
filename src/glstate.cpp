@@ -1,4 +1,6 @@
 #define NOMINMAX
+// #define STB_IMAGE_IMPLEMENTATION
+// #include "stb_image.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -17,25 +19,25 @@ int w = GRID, h = GRID;
 std::vector<float> compute_data(w*h*2);
 std::vector<float> compute_data3(w*h*3);
 std::vector<float> compute_data4(w*h*4);
-
+int wireframeChanged = 0;
 GLint activeText = -1;
 //
 
 // Constructor
 GLState::GLState() :
 	shader(0),
+	wireframe(false),
 	vcount(RES + 1),
 	totalVcount(RES * RES * 6),
 	xFormLoc(0),
 	currTime(0.0f),
 	log2N(log(GRID) / log(2)),
-	camCoords(0.0f, -0.5f, 0.5f),
 	reverseIndices(GRID, 0),
 	vertices(vcount * vcount),
-	windDir(1.0f, 0.0f),
-	cameraPos(0.0f, 0.0f,  3.0f),
+	windDir(1.0f, 1.0f),
+	cameraPos(0.0f, -2.0f,  3.0f),
 	cameraFront(0.0f, 0.0f, -1.0f),
-	cameraUp(0.0f, 1.0f,  0.0f),
+	cameraUp(0.0f,0.50f,  0.5f),
 	// indices(32*32*6),//totalVcount),
 	parametersChanged(true) {}
 	
@@ -61,15 +63,79 @@ GLint GLState::reverse(GLint index){
 	return res;
 }
 
+/*MAYBE LATER
+unsigned int loadCubemap(std::vector<std::string> faces){
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+                         0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+            );
+            stbi_image_free(data);
+        }
+        else
+        {
+            std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}  
+*/
+
 void GLState::increaseWindDir(){
-	windDir.y += 1.0f;
-	windDir = glm::normalize(windDir);
+	GLfloat newAngle = -5; 
+	GLfloat newX = glm::cos(glm::radians(newAngle)) * windDir.x -  glm::sin(glm::radians(newAngle)) * windDir.y;
+	GLfloat newY = glm::sin(glm::radians(newAngle)) * windDir.x +  glm::cos(glm::radians(newAngle)) * windDir.y;
+	windDir = glm::normalize(glm::vec2(newX, newY));
 	parametersChanged = true;
 }
+
+void GLState::decreaseWindDir(){
+	GLfloat newAngle = 5; 
+	GLfloat newX = glm::cos(glm::radians(newAngle)) * windDir.x -  glm::sin(glm::radians(newAngle)) * windDir.y;
+	GLfloat newY = glm::sin(glm::radians(newAngle)) * windDir.x +  glm::cos(glm::radians(newAngle)) * windDir.y;
+	windDir = glm::normalize(glm::vec2(newX, newY));
+	parametersChanged = true;
+}
+
+void GLState::increaseWindSpeed(){
+	GLfloat currSpeed = mainOcean->getWindspeed();
+	currSpeed += 5.0;
+	mainOcean->setWindspeed(currSpeed);
+	parametersChanged = true;
+}
+
+void GLState::decreaseWindSpeed(){
+	GLfloat currSpeed = mainOcean->getWindspeed();
+	if(currSpeed > 0)
+		currSpeed -= 5.0;
+	mainOcean->setWindspeed(currSpeed);
+	parametersChanged = true;
+}
+
+void GLState::triggerWireframe(){
+	wireframe = wireframe ? false : true;
+	wireframeChanged = 1;
+}
+
 // Called when OpenGL context is created (some time after construction)
 void GLState::initializeGL() {
 	// General settings
-	std::cout<<std::endl<<GL_MAX_TEXTURE_UNITS<<std::endl;
+	// std::cout<<std::endl<<GL_MAX_TEXTURE_UNITS<<std::endl;
 	windDir = glm::normalize(windDir);
 	initShaders();
 
@@ -118,7 +184,8 @@ void GLState::initializeGL() {
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
     glBindVertexArray(0); 
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 
 	//GaussianRand Gen
@@ -180,7 +247,7 @@ void GLState::initializeGL() {
 
 	for(int i = 0; i < GRID; i++){
 		reverseIndices[i] = reverse(i);
-		std::cout<<reverseIndices[i]<<std::endl;
+		// std::cout<<reverseIndices[i]<<std::endl;
 	}
 
 
@@ -220,15 +287,24 @@ void GLState::initializeGL() {
 
 }
 
-
-
+void GLState::resize(GLuint w, GLuint h){
+	glViewport(0.0,0.0,w,h);
+}
 
 // Called when window requests a screen redraw
 void GLState::paintGL() {
-	glViewport(-1.0,  -1.0, 2048, 2048);
-	glClearColor(0.4f, 0.3f, 0.1f, 1.0f);
+	glClearColor(0.0f,0.0f / 256.0f, 0.0f / 256.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	if(wireframeChanged == 1){
 	
+		if(wireframe){
+			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+		}else{
+			
+			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+		}
+		wireframeChanged = 0;
+	}
 	if(parametersChanged){
 		std::cout<<"Changed Entry\n";
 		// BUILD H0 IMAGE
@@ -252,21 +328,21 @@ void GLState::paintGL() {
 		glDispatchCompute(GRID / 16, GRID / 16, 1);
 		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 		//TESTING ONLY - h0Test
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, H0computeTexture->id());
-		H0computeTexture->bindImage(0, GL_WRITE_ONLY);
-		glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
-		w = GRID;
-		h = GRID;
-		ofs.open("temp/test_h0.ppm", std::ios_base::out | std::ios_base::binary);
-		ofs2.open("temp/test_h0.txt");
-		ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-		for(int curr = 0; curr < w*h*2; curr+=2){
-			ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
-			ofs2 <<  (compute_data.at(curr + 0)) << " " << (compute_data.at(curr + 1)) << " " <<  (0) << '\n';
-		}
-		ofs.close();
-		ofs2.close();
+		// glActiveTexture(GL_TEXTURE0);
+		// glBindTexture(GL_TEXTURE_2D, H0computeTexture->id());
+		// H0computeTexture->bindImage(0, GL_WRITE_ONLY);
+		// glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
+		// w = GRID;
+		// h = GRID;
+		// ofs.open("temp/test_h0.ppm", std::ios_base::out | std::ios_base::binary);
+		// ofs2.open("temp/test_h0.txt");
+		// ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
+		// for(int curr = 0; curr < w*h*2; curr+=2){
+		// 	ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
+		// 	ofs2 <<  (compute_data.at(curr + 0)) << " " << (compute_data.at(curr + 1)) << " " <<  (0) << '\n';
+		// }
+		// ofs.close();
+		// ofs2.close();
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glActiveTexture(GL_TEXTURE0);
@@ -295,16 +371,16 @@ void GLState::paintGL() {
 		glDispatchCompute(GRID / 16, GRID / 16, 1);
 		glMemoryBarrier( GL_ALL_BARRIER_BITS );
 		//TESTING ONLY - h0Test
-		glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
-		ofs.open("temp/test_h0MinusK.ppm", std::ios_base::out | std::ios_base::binary);
-		ofs2.open("temp/test_h0MinusK.txt");
-		ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-		for(int curr = 0; curr < w*h*2; curr+=2){
-			ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
-			ofs2 <<  (compute_data.at(curr + 0) * 256) << " " << (compute_data.at(curr + 1) * 256) << " " <<  (0) << '\n';
-		}
-		ofs.close();
-		ofs2.close();
+		// glGetTexImage( GL_TEXTURE_2D, 0, GL_RG, GL_FLOAT, compute_data.data() );
+		// ofs.open("temp/test_h0MinusK.ppm", std::ios_base::out | std::ios_base::binary);
+		// ofs2.open("temp/test_h0MinusK.txt");
+		// ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
+		// for(int curr = 0; curr < w*h*2; curr+=2){
+		// 	ofs << (char) (compute_data.at(curr + 0) * 256) << (char) (compute_data.at(curr + 1) * 256) << (char) (0);
+		// 	ofs2 <<  (compute_data.at(curr + 0) * 256) << " " << (compute_data.at(curr + 1) * 256) << " " <<  (0) << '\n';
+		// }
+		// ofs.close();
+		// ofs2.close();
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glActiveTexture(GL_TEXTURE0);
@@ -346,8 +422,8 @@ void GLState::paintGL() {
 	glm::mat4 xform(1.0f);
 	glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 	glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-	view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	view = glm::rotate(view, glm::radians(camCoords.x), glm::vec3(0.0f, 1.0f, 0.0f));
+	// view = glm::rotate(view, glm::radians(-45.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	// view = glm::rotate(view, glm::radians(camCoords.x), glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 pos = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.0f,0.0f));
 	xform = proj * view;//* pos;// * fixBB;
 	glUniformMatrix4fv(xFormLoc, 1, GL_FALSE, glm::value_ptr(xform));
@@ -356,6 +432,10 @@ void GLState::paintGL() {
 	glUniform1i(glGetUniformLocation(shader, "dispMapX"), 3);
 	glUniform1i(glGetUniformLocation(shader, "dispMapY"), 4);
 	glUniform1i(glGetUniformLocation(shader, "dispMap"), 5);
+	glUniform1i(glGetUniformLocation(shader, "normMap"), 6);
+	glUniform3f(glGetUniformLocation(shader, "camPos"), cameraPos[0], cameraPos[1], cameraPos[2]);
+	// glUniform3f(glGetUniformLocation(shader, "lightPos"), 0.0f, 0.7f, 0.2f);
+
 	glUniform1f(glGetUniformLocation(shader, "speed"), mainOcean->getWindspeed());
 	glUniform2f(glGetUniformLocation(shader, "windDir"), windDir[0], windDir[1]);
 	glActiveTexture(GL_TEXTURE2);
@@ -377,6 +457,13 @@ void GLState::paintGL() {
 	glActiveTexture(GL_TEXTURE5);
 	glBindTexture(GL_TEXTURE_2D, CombineMapscomputeTexture->id());
 	CombineMapscomputeTexture->bindImage(5, GL_READ_ONLY);
+
+
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D, NormalMapcomputeTexture->id());
+	NormalMapcomputeTexture->bindImage(6, GL_READ_ONLY);
+
+
   	glBindVertexArray(vao);
 
   	// glDrawElements(GL_LINES, length, GL_UNSIGNED_INT, NULL);
@@ -868,4 +955,20 @@ void GLState::runNormalMapShader(){
 	
 	glDispatchCompute(GRID / 16, GRID / 16, 1);
 	glMemoryBarrier( GL_ALL_BARRIER_BITS );
+
+
+	// glActiveTexture(GL_TEXTURE0);
+	// glBindTexture(GL_TEXTURE_2D, NormalMapcomputeTexture->id());
+	// NormalMapcomputeTexture->bindImage(0, GL_READ_ONLY);	
+	// glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, compute_data3.data() );
+	// ofs.open("temp/test_normal.ppm", std::ios_base::out | std::ios_base::binary);
+	// ofs2.open("temp/test_normal.txt");
+	// ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
+	// for(int curr = 0; curr < w*h*3; curr+=3){
+	// 	ofs << (char) (compute_data3.at(curr + 0) * 256) << (char) (compute_data3.at(curr + 1) * 256) << (char) (compute_data3.at(curr + 2) * 256);
+	// 	ofs2 <<  (compute_data3.at(curr + 0)) << " " << (compute_data3.at(curr + 1)) << " " <<  (compute_data3.at(curr + 2)) << '\n';
+	// }
+	// ofs.close();
+	// ofs2.close();
+	// exit(0);
 }

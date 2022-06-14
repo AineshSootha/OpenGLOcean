@@ -1,29 +1,28 @@
 #version 430
 
-// in vec4 posCurr;	// Interpolated model-space normal
-layout(rgba32f, binding = 2) readonly uniform image2D img_hk;
-in float heightVal;
-in vec4 bump;
 out vec4 outCol;	// Final pixel color
 
-void main() {
-	// Visualize normals as colors
-	
-	vec3 currCol = vec3(0.2,0.8,0.8);
-
-	// // if(heightVal > 0.5*0.05){
-	// // 	currCol = vec4(1.0, 1.0, 1.0, 1.0);
-	// // }
-	// // if(heightVal < 0.0){
-	// // 	currCol = vec4(0.0, 0.0, 0.5, 1.0);
-	// // }else if(heightVal > 0.0){
-	// // 	currCol = vec4(0.0, 0.0, abs(heightVal * 100), 1.0);
-	// // }
-	float ambientStrength = 0.1;
-    vec3 ambient = ambientStrength * lightColor;
-
-    vec3 result = ambient * currCol;
-	outCol = vec4(currCol,1.0);
-
-	//vec4(imageLoad(img_hk, ivec2(gl_FragCoord.xyz)).rgba);
+in vec3 fragNorm;
+in vec3 fragPos;
+uniform vec3 camPos;
+vec3 lightPos = vec3(0.0, 0.0, 0.7);
+ 
+void main (void) {
+ 	vec3 normalizedNorm = normalize(fragNorm);
+	vec3 lightDirection =  normalize(lightPos); //normalize(lightPos - fragPos);// :
+	vec3 viewDirection = normalize(camPos - fragPos);
+	vec3 reflectedRay = 2 * dot(lightDirection,normalizedNorm)*normalizedNorm - lightDirection ;
+	float diffuseTemp = max(dot(normalizedNorm, lightDirection), 0.0);
+	float specularTemp = max(dot(viewDirection, reflectedRay), 0.0);
+	float ambStr = 0.4;
+	float diffStr = 0.4;
+	float specStr = 0.5;
+	float specExp = 8.0;
+	vec3 lightCol = vec3(1.0);
+	vec3 ambCol = ambStr * lightCol;
+	vec3 difCol = diffStr * diffuseTemp * lightCol;
+	vec3 speCol = specStr * pow(specularTemp, specExp) * lightCol;
+	vec3 objColor = vec3(72.0/256.0, 191.0 / 256.0, 145.0 / 256.0);//, 1.0)
+	outCol = vec4((difCol + ambCol + speCol) * objColor, 1.0);
+    
 }

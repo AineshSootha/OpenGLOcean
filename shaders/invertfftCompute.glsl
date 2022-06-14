@@ -14,7 +14,6 @@ uniform int inOutDecide;
 
 void main(){
     ivec2 pos = ivec2( gl_GlobalInvocationID.xy );
-    // float inversionSign[] = {1.0, -1.0}; 
     float inversion =  ((pos.x + pos.y) & 1) == 1 ? -1.0 : 1.0;
     if(inOutDecide == 0){
         float inH = imageLoad(inOutTex0, pos).r;
@@ -24,7 +23,4 @@ void main(){
        imageStore(finalOut, pos, vec4(inversion * inH / (N*N), inversion * inH / (N*N), inversion * inH / (N*N),1.0));
     }
 }
-
-
-        // imageStore(finalOut, pos, vec4(inversion * inH / (N*N), inversion * inH / (N*N), inversion * inH / (N*N),1.0));
  

@@ -18,8 +18,9 @@ public:
     GLuint texOut;
     GLint getN() {return N;};
     GLint getL() {return L;};
-    GLint getWindspeed() {return windspeed;};
+    GLfloat getWindspeed() {return windspeed;};
     GLint getA() {return A;};
+    void setWindspeed(GLfloat newSpeed) {windspeed = newSpeed;};
 
 private:
     // std::vector<std::string> randImageStarters;

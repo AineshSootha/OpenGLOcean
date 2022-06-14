@@ -46,28 +46,28 @@ int Ocean::generateRands(int runCall, int w = 256, int h = 256){
     }
 
     //TESTING ONLY
-    std::ofstream ofs("temp/test_gaussians" + std::to_string(1) + ".ppm", std::ios_base::out | std::ios_base::binary);
-    std::ofstream ofs2("temp/test_gaussians" + std::to_string(1) + ".txt");
-    ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-    for(int curr = 0; curr < w*h*3; curr+=3){
-        // std::cout<<curr<<std::endl;
-        ofs << (char) (rands1.at(curr + 0) * 256) << (char) (rands1.at(curr + 1) * 256) << (char) (rands1.at(curr + 2) * 256);
-        ofs2 <<  (rands1.at(curr + 0)) << " " <<  (rands1.at(curr + 1)) << " " <<  (rands1.at(curr + 2)) << '\n';
-    }
-    ofs.close();
-    ofs2.close();
+    // std::ofstream ofs("temp/test_gaussians" + std::to_string(1) + ".ppm", std::ios_base::out | std::ios_base::binary);
+    // std::ofstream ofs2("temp/test_gaussians" + std::to_string(1) + ".txt");
+    // ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
+    // for(int curr = 0; curr < w*h*3; curr+=3){
+    //     // std::cout<<curr<<std::endl;
+    //     ofs << (char) (rands1.at(curr + 0) * 256) << (char) (rands1.at(curr + 1) * 256) << (char) (rands1.at(curr + 2) * 256);
+    //     ofs2 <<  (rands1.at(curr + 0)) << " " <<  (rands1.at(curr + 1)) << " " <<  (rands1.at(curr + 2)) << '\n';
+    // }
+    // ofs.close();
+    // ofs2.close();
 
-    ofs.open("temp/test_gaussians" + std::to_string(2) + ".ppm", std::ios_base::out | std::ios_base::binary);
-    ofs2.open("temp/test_gaussians" + std::to_string(2) + ".txt");
-    ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
-    for(int curr = 0; curr < w*h*3; curr+=3){
-        // std::cout<<curr<<std::endl;
-        ofs << (char) (rands2.at(curr + 0) * 256) << (char) (rands2.at(curr + 1) * 256) << (char) (rands2.at(curr + 2) * 256);
-        ofs2 <<  (rands2.at(curr + 0)) << " " <<  (rands2.at(curr + 1)) << " " <<  (rands2.at(curr + 2)) << '\n';
-    }
-    ofs.close();
-    ofs2.close();
-    //****
+    // ofs.open("temp/test_gaussians" + std::to_string(2) + ".ppm", std::ios_base::out | std::ios_base::binary);
+    // ofs2.open("temp/test_gaussians" + std::to_string(2) + ".txt");
+    // ofs << "P6" << std::endl << w << ' ' << h << std::endl << "255" << std::endl;    
+    // for(int curr = 0; curr < w*h*3; curr+=3){
+    //     // std::cout<<curr<<std::endl;
+    //     ofs << (char) (rands2.at(curr + 0) * 256) << (char) (rands2.at(curr + 1) * 256) << (char) (rands2.at(curr + 2) * 256);
+    //     ofs2 <<  (rands2.at(curr + 0)) << " " <<  (rands2.at(curr + 1)) << " " <<  (rands2.at(curr + 2)) << '\n';
+    // }
+    // ofs.close();
+    // ofs2.close();
+
 
     return 0; 
 }

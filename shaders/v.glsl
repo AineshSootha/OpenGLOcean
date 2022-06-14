@@ -2,59 +2,51 @@
 
 layout(location = 0) in vec3 pos;		// Model-space position
 layout(location = 1) in vec2 tex;		// Model-space normal
-out float heightVal;
-out vec4 bump;
-// layout(rgba32f, binding = 1) writeonly uniform image2D img_output;
-vec3 curPos;
-// out vec3 col;	// Model-space interpolated normal
-// layout(rgba32f, binding = 2) readonly uniform image2D img_hk;
+
+out vec3 fragNorm;
+out vec3 fragPos;
+// out float fog_factor;
+
 uniform mat4 xform;			// Model-to-clip space transform
 uniform float a_time;
-uniform sampler2D dispMapZ;
-uniform sampler2D dispMapX;
-uniform sampler2D dispMapY;
 uniform sampler2D dispMap;
+uniform sampler2D normMap;
+// uniform vec3 lightPos;
+uniform vec3 camPos;
 uniform vec2 windDir;
 uniform float speed;
 
-const ivec3 off = ivec3(-1,0,1);
-const vec2 size = vec2(2.0,0.0);
-
-// layout(rgba32f, binding = 2) readonly uniform image2D img_hk;
 
 void main() {
-	// Transform vertex position
-	// curPos = view * pos;
-	
-	// vec2 texCoord = pos.xy / float(256);
-	// vec2 texCoord = vec2(pos.xy) / float(256);
 	vec2 texCoord = pos.xy;
 	vec2 further = texCoord / 16.0;
 	vec2 evenFurther = texCoord / 64.0;
 
 
 	
-	float h = texture(dispMap, texCoord).b / 256.0 * 32.0;// ).r;
+	float h = texture(dispMap, texCoord).b / 256.0 * 64.0;// ).r;
 	float hFurther = texture(dispMap, further).b / 256.0 * 32.0;;// ).r;
 	float hEvenFurther = texture(dispMap, evenFurther).b / 256.0 * 32.0;;// ).r;
 
 	float xNew = texture(dispMap, texCoord).r / 256.0 * 16.0;// + windDir * speed).r;
-	float yNew = texture(dispMap, texCoord).g / 256.0 * 16.0;// + windDir * speed).r;
-	heightVal = h;
+	float xFurther = texture(dispMap, further).r / 256.0 * 32.0;;// ).r;
+	float xEvenFurther = texture(dispMap, evenFurther).r / 256.0 * 32.0;;// ).r;
 
-	vec3 vtx = vec3(pos.x - xNew,  pos.y -yNew, h + hFurther + hEvenFurther); //+ texture(dispMap, texCoord).rgb;
-	// vtx.y = (sin(2.0 * vtx.x + a_time/1000.0 ) * cos(1.5 * vtx.y + a_time/1000.0) * 0.2);
+	float yNew = texture(dispMap, texCoord).g / 256.0 * 16.0;// + windDir * speed).r;
+	float yFurther = texture(dispMap, further).g / 256.0 * 32.0;;// ).r;
+	float yEvenFurther = texture(dispMap, evenFurther).g / 256.0 * 32.0;;// ).r;
+
+
+	vec3 vtx = vec3(pos.x - xNew - xFurther - xEvenFurther,  pos.y - yNew - yFurther - yEvenFurther, h + hFurther + hEvenFurther); //+ texture(dispMap, texCoord).rgb;
+	
 	gl_Position =  xform* vec4(vtx,1.0);// + imageLoad(img_hk, pos).xyz, 1.0) ; 
 
-    float s11 = h;
-    float s01 = textureOffset(dispMapZ, texCoord, off.xy).x;
-    float s21 = textureOffset(dispMapZ, texCoord, off.zy).x;
-    float s10 = textureOffset(dispMapZ, texCoord, off.yx).x;
-    float s12 = textureOffset(dispMapZ, texCoord, off.yz).x;
-    vec3 va = normalize(vec3(size.xy,s21-s01));
-    vec3 vb = normalize(vec3(size.yx,s12-s10));
-    bump = vec4( texCoord.xy, h, 1.0 );
-	// if(pos.x > -0.5 && pos.x < 0.5 && pos.y > -0.5 && pos.y < 0.5){
-	// col = vec3(1.0,1.0,1.0);
-	//}
+	vec3 normal = texture(normMap, texCoord).rgb;
+ 
+    vec4 v = xform * vec4(vtx, 1.0);
+    vec3 normal1 = normalize(normal);
+	fragPos = vtx.xyz;
+    fragNorm = (inverse(transpose(xform)) * vec4(normal1, 0.0)).xyz;
+
+
 }
